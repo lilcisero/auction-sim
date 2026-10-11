@@ -1,0 +1,1165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Auction Sim Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Public+Sans:wght@400;600;700&family=IBM+Plex+Mono&display=swap">
+<style>
+/* Layout: sticky scoreboard header with tabs; one narrow column of panels, rows stack on phones */
+:root{
+  --bg:#eef1f5; --surface:#ffffff; --sunk:#e3e8ef; --line:#d3dae4;
+  --ink:#121a2b; --muted:#5b6578;
+  --accent:#d9561a; --accent-soft:#f8dfd1;
+  --good:#16794a; --good-soft:#d3eee0; --bad:#c0352b; --bad-soft:#f6d9d6; --warn:#9a6300; --warn-soft:#f6e7c8;
+  --bar:#33415c;
+  --f-display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c111b; --surface:#151c2a; --sunk:#1d2638; --line:#2a3447;
+  --ink:#e8ecf3; --muted:#97a2b6;
+  --accent:#ff8443; --accent-soft:#3e2516;
+  --good:#4cc98a; --good-soft:#15362a; --bad:#ff7b6e; --bad-soft:#3d1c1a; --warn:#e3ad48; --warn-soft:#3a2d12;
+  --bar:#9fb0cc; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c111b; --surface:#151c2a; --sunk:#1d2638; --line:#2a3447;
+  --ink:#e8ecf3; --muted:#97a2b6;
+  --accent:#ff8443; --accent-soft:#3e2516;
+  --good:#4cc98a; --good-soft:#15362a; --bad:#ff7b6e; --bad-soft:#3d1c1a; --warn:#e3ad48; --warn-soft:#3a2d12;
+  --bar:#9fb0cc; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-body);font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:var(--f-display);font-weight:800;letter-spacing:.01em;text-wrap:balance;margin:0;line-height:1.05}
+h2{font-size:22px;text-transform:uppercase}
+.wrap{max-width:960px;margin:0 auto;padding-inline:16px}
+.muted{color:var(--muted)}
+code{font-family:var(--f-mono);font-size:.92em;white-space:nowrap}
+.label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.masthead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-block:12px 6px;flex-wrap:wrap}
+.masthead h1{font-size:26px;text-transform:uppercase}
+.masthead h1 span{color:var(--accent)}
+.runmeta{font-size:12px;color:var(--muted)}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-block:4px 10px}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{flex:1 0 auto;border:0;background:transparent;padding:8px 14px;border-radius:999px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{background:var(--ink);color:var(--surface)}
+
+main{padding-block:16px 48px;display:grid;gap:14px}
+.stack{display:grid;gap:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.panel > h2{margin-bottom:4px}
+.panel > .sub{font-size:13px;color:var(--muted);margin:0 0 14px}
+.notice{border-radius:var(--r);padding:12px 14px;font-size:14px;background:var(--warn-soft);color:var(--ink);border:1px solid var(--line)}
+.notice b{color:var(--warn)}
+
+/* verdict */
+.verdict{display:grid;grid-template-columns:auto 1fr;gap:6px 20px;align-items:end}
+.verdict .big{font-family:var(--f-display);font-weight:800;font-size:84px;line-height:.85;color:var(--accent)}
+.verdict .big small{font-size:40px}
+.verdict .vname{font-family:var(--f-display);font-weight:800;font-size:30px;text-transform:uppercase;line-height:1}
+.verdict .base{font-size:13px;color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+.tile{background:var(--sunk);border-radius:8px;padding:8px 10px}
+.tile b{display:block;font-family:var(--f-display);font-weight:800;font-size:28px;line-height:1.05}
+@media (max-width:440px){.verdict{grid-template-columns:1fr}.verdict .big{font-size:72px}}
+
+/* category bars */
+.cats{display:grid;gap:7px}
+.catrow{display:grid;grid-template-columns:52px 1fr 44px;gap:10px;align-items:center;font-size:13px}
+.catrow .nm{font-weight:700}
+.track{position:relative;height:12px;background:var(--sunk);border-radius:6px;overflow:hidden}
+.track .fill{position:absolute;inset:0 auto 0 0;border-radius:6px;background:var(--bar)}
+.track .fill.hi{background:var(--good)}
+.track .fill.lo{background:var(--bad)}
+.track .mid{position:absolute;top:-2px;bottom:-2px;left:50%;width:2px;background:var(--surface)}
+.catrow.punt{opacity:.55}
+.catrow .v{text-align:right;font-weight:600}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+
+/* finish chart */
+.finish{display:grid;grid-template-columns:28px 1fr;gap:6px}
+.finish .yax{position:relative;height:150px;font-size:11px;color:var(--muted)}
+.finish .yax span{position:absolute;right:0;transform:translateY(50%)}
+.finish .plot{position:relative;height:150px;display:flex;align-items:flex-end;gap:3px;border-bottom:1px solid var(--line)}
+.finish .grid{position:absolute;left:0;right:0;border-top:1px dashed var(--line)}
+.finish .col{flex:1;position:relative;z-index:1;border-radius:3px 3px 0 0;background:var(--bar);min-height:1px}
+.finish .col.po{background:var(--accent)}
+.finish .xax{grid-column:2;display:flex;gap:3px;font-size:11px;color:var(--muted)}
+.finish .xax span{flex:1;text-align:center}
+
+/* buttons, chips */
+.btn{border:0;border-radius:8px;padding:10px 16px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.chip{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-radius:999px;padding:2px 8px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.chip.accent{background:var(--accent-soft);color:var(--accent)}
+.chip.good{background:var(--good-soft);color:var(--good)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+pre.import{font:12.5px/1.5 var(--f-mono);background:var(--sunk);border-radius:8px;padding:12px;max-height:220px;overflow:auto;margin:12px 0 0;white-space:pre}
+.toast{font-size:13px;color:var(--good);font-weight:600}
+
+/* strategies */
+.strats{display:grid;gap:8px}
+.strat{border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.strat summary{list-style:none;cursor:pointer;padding:12px;display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center}
+.strat summary::-webkit-details-marker{display:none}
+.strat .nm{font-weight:700;min-width:0}
+.strat .nm .style{font-weight:400;color:var(--muted)}
+.strat .pct{font-family:var(--f-display);font-weight:800;font-size:28px;line-height:1;text-align:right}
+.strat .pct small{font-size:16px}
+.strat .bars{grid-column:1/-1;display:grid;gap:4px}
+.strat .stats{grid-column:1/-1;display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.strat .body{padding:0 12px 14px}
+.strat[open]{border-color:var(--ink)}
+.strat.lead .pct{color:var(--accent)}
+.mini{height:8px}
+.mini .fill{background:var(--accent)}
+.mini.po .fill{background:var(--bar)}
+
+/* players */
+.filters{display:grid;gap:10px;margin-bottom:12px}
+.filters input,.filters select{font:inherit;color:var(--ink);background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0}
+.filters .two{display:grid;grid-template-columns:1fr auto;gap:8px}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chips button{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer}
+.chips button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.plist{display:grid;gap:6px}
+.player{border:1px solid var(--line);border-radius:8px}
+.player summary{list-style:none;cursor:pointer;padding:10px 12px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center}
+.player summary::-webkit-details-marker{display:none}
+.player .who{min-width:0}
+.player .who b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.player .who .meta{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.player .bid{text-align:right;font-family:var(--f-display);font-weight:800;font-size:30px;line-height:1;color:var(--accent)}
+.player .bid.zero{color:var(--muted)}
+.player .bid small{display:block;font-family:var(--f-body);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.range{grid-column:1/-1;position:relative;height:14px;margin-top:4px}
+.range .rail{position:absolute;top:6px;left:0;right:0;height:2px;background:var(--sunk);border-radius:1px}
+.range .band{position:absolute;top:3px;height:8px;border-radius:4px;background:var(--bar);opacity:.35}
+.range .med{position:absolute;top:0;width:3px;height:14px;border-radius:2px;background:var(--bar)}
+.range .mx{position:absolute;top:-1px;width:3px;height:16px;border-radius:2px;background:var(--accent)}
+.player .line{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.player .detail{padding:0 12px 12px;display:grid;gap:10px}
+.zgrid{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:3px;text-align:center;font-size:11px}
+.zgrid div{border-radius:4px;padding:4px 0}
+.zgrid .h{font-weight:700;color:var(--muted)}
+.facts{display:flex;gap:16px;flex-wrap:wrap;font-size:13px}
+.facts b{font-weight:700}
+.more{justify-self:center;margin-top:8px}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+
+/* schedule */
+.tablewrap{overflow-x:auto;margin-inline:-4px}
+table{border-collapse:collapse;width:100%;min-width:300px}
+th,td{padding:7px 8px;text-align:center;border-bottom:1px solid var(--line)}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;vertical-align:bottom}
+th small{display:block;font-weight:400;letter-spacing:0;text-transform:none}
+td:first-child,th:first-child{text-align:left;font-weight:700}
+td.g{font-weight:600}
+td.g4{background:var(--good-soft);color:var(--good)}
+td.g2{background:var(--bad-soft);color:var(--bad)}
+td.tot{font-family:var(--f-display);font-weight:800;font-size:20px}
+
+footer{font-size:12px;color:var(--muted);padding-bottom:24px}
+@media (prefers-reduced-motion:no-preference){.track .fill,.mini .fill,.finish .col{transition:width .4s ease,height .4s ease}}
+
+/* game plan + glossary */
+.plan{margin:0;padding-left:22px;display:grid;gap:8px}
+.plan li::marker{font-family:var(--f-display);font-weight:800;color:var(--accent)}
+.gloss{border-top:1px solid var(--line);margin-top:14px;padding-top:10px}
+.gloss summary{cursor:pointer;font-weight:700}
+.gloss dl{margin:10px 0 0;display:grid;gap:8px;font-size:14px}
+.gloss dt{font-weight:700}
+.gloss dd{margin:0;color:var(--muted)}
+
+/* forms */
+.form{display:grid;gap:10px}
+.form .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.field{display:grid;gap:4px;min-width:0}
+.field span{font-size:12px;font-weight:700;color:var(--muted)}
+.field small{font-size:12px;color:var(--muted)}
+.field input,.field select,.inp{font:inherit;color:var(--ink);background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0}
+.check{display:flex;gap:8px;align-items:center;font-size:14px}
+.check input{width:18px;height:18px;accent-color:var(--accent)}
+details.adv summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--muted)}
+details.adv[open] summary{margin-bottom:10px}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.danger{background:transparent;border:1px solid var(--line);color:var(--bad)}
+.btn.sm{padding:6px 10px;font-size:13px}
+
+/* job progress */
+.prog{height:10px;background:var(--sunk);border-radius:5px;overflow:hidden;margin:10px 0 6px}
+.prog div{height:100%;background:var(--accent);transition:width .4s ease}
+pre.log{font:12px/1.45 var(--f-mono);background:var(--sunk);border-radius:8px;padding:10px 12px;max-height:180px;overflow:auto;margin:10px 0 0;white-space:pre-wrap;word-break:break-word}
+.err{color:var(--bad);font-weight:600;font-size:14px}
+
+/* run history */
+.runs{display:grid;gap:8px}
+.run{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:center}
+.run.viewing{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.run .t{min-width:0}
+.run .t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.run .t .meta{font-size:12px;color:var(--muted)}
+.run .p{text-align:right;font-family:var(--f-display);font-weight:800;font-size:24px;line-height:1}
+.run .p small{display:block;font-family:var(--f-body);font-size:11px;font-weight:600;color:var(--muted)}
+.run .acts{grid-column:2/-1;display:flex;gap:6px;flex-wrap:wrap}
+
+/* compare table */
+.cmp{border-collapse:separate;border-spacing:0}
+.cmp th,.cmp td{white-space:nowrap}
+.cmp td:first-child,.cmp th:first-child{position:sticky;left:0;background:var(--surface);z-index:1}
+.cmp td.lead{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.cmp td.avg{font-family:var(--f-display);font-weight:800;font-size:18px}
+.cmp tr.top td:first-child{color:var(--accent)}
+
+/* live draft */
+.status{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.status .tile b{font-size:26px}
+.status .tile.hot b{color:var(--bad)}
+.status .tile.cold b{color:var(--good)}
+@media (max-width:520px){.status{grid-template-columns:repeat(2,1fr)}}
+.sync{font-size:12px;color:var(--muted)}
+.sync.bad{color:var(--bad);font-weight:600}
+.block{display:grid;gap:12px}
+.bigcall{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;align-items:center;border-radius:var(--r);padding:12px 14px;background:var(--sunk)}
+.bigcall .amt{font-family:var(--f-display);font-weight:800;font-size:56px;line-height:.9;color:var(--accent)}
+.bigcall.pass .amt{color:var(--muted)}
+.bigcall.bait .amt{color:var(--warn)}
+.bigcall .why{font-size:13px;color:var(--muted)}
+.bigcall .call{font-family:var(--f-display);font-weight:800;font-size:22px;text-transform:uppercase;line-height:1.05}
+.sold{display:grid;grid-template-columns:110px 1fr auto;gap:8px;align-items:end}
+@media (max-width:440px){.sold{grid-template-columns:1fr 1fr}.sold .btn{grid-column:1/-1}}
+.mini-list{display:grid;gap:0}
+.mini-list > *{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.mini-list > *:last-child{border-bottom:0}
+.mini-list .sub2{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.mini-list button.name{all:unset;cursor:pointer;font-weight:700;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.mini-list button.name:focus-visible{outline:2px solid var(--accent)}
+.x{border:1px solid var(--line);background:transparent;border-radius:6px;padding:2px 8px;cursor:pointer;color:var(--muted)}
+.cols2{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))}
+.poscount{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.teamtbl td,.teamtbl th{padding:6px 6px}
+.teamtbl input{font:inherit;color:inherit;background:transparent;border:0;border-bottom:1px dashed var(--line);width:100%;min-width:80px;padding:2px 0}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="masthead">
+      <h1>Auction <span>Sim</span></h1>
+      <div class="runmeta" id="runmeta"></div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Report sections">
+      <button role="tab" data-tab="summary" aria-selected="true">Summary</button>
+      <button role="tab" data-tab="live" aria-selected="false">Live draft</button>
+      <button role="tab" data-tab="strategies" aria-selected="false">Strategies</button>
+      <button role="tab" data-tab="players" aria-selected="false">Players</button>
+      <button role="tab" data-tab="schedule" aria-selected="false">Schedule</button>
+      <button role="tab" data-tab="runs" aria-selected="false">Runs</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" id="app">
+  <div class="empty" id="nodata">Loading…</div>
+</main>
+
+<script>
+const EMBED = /*RESULTS*/null;
+const FORCE_MODE = "browser"; // "browser" on the public site: sims run on the visitor's device
+
+const STRAT_NAMES = {balanced:"Balanced", punt_ft:"Punt FT%", punt_to:"Punt TO", punt_fg_to:"Punt FG% + TO", punt_ast_to:"Punt AST + TO"};
+const STYLE_NAMES = {spread:"Spread", stars:"Stars & scrubs"};
+const STRAT_PLAIN = {
+  balanced: "Try to be decent in all nine categories. Nothing is given up, but nothing is dominant either.",
+  punt_ft: "Ignore free-throw percentage. That frees you to buy big men who shoot badly from the line but pile up rebounds, blocks and FG%.",
+  punt_to: "Ignore turnovers. The best passers and scorers handle the ball a lot and turn it over a lot; by giving up the TO category you can buy them without worrying about it.",
+  punt_fg_to: "Ignore FG% and turnovers. Lean on high-volume guards who shoot threes, score, assist and steal.",
+  punt_ast_to: "Ignore assists and turnovers. Lean on forwards and bigs who score, rebound, block and shoot efficiently.",
+};
+const STYLE_PLAIN = {
+  stars: "Stars & scrubs: spend most of your $200 on a few elite players, then fill the rest of the roster at $1–3.",
+  spread: "Spread: buy lots of solid mid-priced players instead of a few superstars.",
+};
+const TYPE_CHIP = {bait:"warn", flier:"good", target:"accent"};
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = (v, d = 0) => v == null ? "–" : Number(v).toFixed(d);
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const store = {
+  get(k){ try { return localStorage.getItem("auctionsim." + k); } catch { return null; } },
+  set(k, v){ try { localStorage.setItem("auctionsim." + k, v); } catch {} },
+};
+const key = s => String(s ?? "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase()
+  .replace(/[^a-z0-9 ]/g, "").replace(/\b(jr|sr|ii|iii|iv)\b/g, "").replace(/\s+/g, " ").trim();
+const stratName = s => `${STRAT_NAMES[s.strategy] || s.strategy} · ${STYLE_NAMES[s.style] || s.style}`;
+const stratLabel = s => `${esc(STRAT_NAMES[s.strategy] || s.strategy)} <span class="style">· ${esc(STYLE_NAMES[s.style] || s.style)}</span>`;
+const sameStrat = (a, b) => a.strategy === b.strategy && a.style === b.style;
+const posKind = p => { const s = String(p.pos || "").toUpperCase(); return s.includes("C") ? "big" : s && !s.includes("F") ? "guard" : s ? "wing" : (p.type === "bait" ? "wing" : p.type); };
+// 95% noise on a title % from n simulated auctions
+const noise = (pct, n) => 200 * Math.sqrt(Math.max(pct / 100 * (1 - pct / 100), 0.0025) / Math.max(n, 1));
+
+let BE = null, API = false, SYNC = false, DATA = null, RUNS = [], JOB = null, TAB = "summary", jobSeen = false;
+const compareSel = new Set();
+
+// ================= backends: where runs come from =================
+const json = r => r.json().then(j => ({ok: r.ok, status: r.status, json: j}));
+const serverBackend = {
+  kind: "server",
+  listRuns: () => fetch("api/runs", {cache: "no-store"}).then(r => { if (!r.ok) throw r.status; return r.json(); }),
+  getRun: id => fetch("api/runs/" + id, {cache: "no-store"}).then(r => r.ok ? r.json() : null),
+  deleteRun: id => fetch("api/runs/" + id, {method: "DELETE"}),
+  startRun: body => fetch("api/runs", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)}).then(json),
+  job: () => fetch("api/job", {cache: "no-store"}).then(r => r.json()),
+  cancel: () => fetch("api/job/cancel", {method: "POST", body: "{}"}),
+};
+
+// Public site: runs are stored in this browser (IndexedDB) and simulated in a Web Worker (sim.js).
+const browserBackend = (() => {
+  let dbp = null;
+  const db = () => dbp ??= new Promise((ok, fail) => {
+    const r = indexedDB.open("auction-sim", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("runs", {keyPath: "id"});
+    r.onsuccess = () => ok(r.result); r.onerror = () => fail(r.error);
+  });
+  const tx = async (mode, fn) => {
+    const d = await db();
+    return new Promise((ok, fail) => {
+      const t = d.transaction("runs", mode), req = fn(t.objectStore("runs"));
+      t.oncomplete = () => ok(req?.result); t.onerror = () => fail(t.error);
+    });
+  };
+  const summarize = d => ({id: d.id, label: d.label || "", generated: d.generated, demo: !!d.demo, settings: d.settings,
+    anchor_source: d.anchor_source || "", leader: d.strategies[0],
+    strategies: d.strategies.map(s => ({strategy: s.strategy, style: s.style, "title_%": s["title_%"], "playoffs_%": s["playoffs_%"], avg_finish: s.avg_finish}))});
+  const LIMITS = {auctions: [20, 10000], replicates: [20, 400], sigma: [0.05, 1], pool: [220, 400], seed: [0, 1e6]};
+  let job = {running: false, queue: [], current: null, done: 0, log: [], error: null, finished: [], total: 0}, worker = null, stopFn = null;
+  const set = o => Object.assign(job, o);
+  function runOne(args){
+    return new Promise((ok, fail) => {
+      worker = new Worker("sim.js");
+      worker.onmessage = async e => {
+        const m = e.data;
+        if (m.type === "log") set({log: [...job.log, m.line].slice(-60), done: m.done});
+        else if (m.type === "done") {
+          worker.terminate(); worker = null;
+          let run = m.run;
+          while (await tx("readonly", st => st.get(run.id))) run = {...run, id: run.id + "b"}; // two runs in one second
+          await tx("readwrite", st => st.put(run));
+          job.finished.push(run.id); ok();
+        } else { worker.terminate(); worker = null; fail(new Error(m.message)); }
+      };
+      worker.onerror = e => { worker?.terminate(); worker = null; fail(new Error(e.message || "The sim crashed.")); };
+      worker.postMessage({opts: args, dataUrl: new URL("data.json", location.href).href});
+    });
+  }
+  return {
+    kind: "browser",
+    listRuns: async () => (await tx("readonly", st => st.getAll())).map(summarize).sort((a, b) => b.id.localeCompare(a.id)),
+    getRun: id => tx("readonly", st => st.get(id)),
+    deleteRun: id => tx("readwrite", st => st.delete(id)),
+    job: async () => structuredClone(job),
+    cancel: async () => { if (worker) { worker.terminate(); worker = null; set({queue: [], error: "Stopped."}); stopFn?.(); } },
+    async startRun(body){
+      if (job.running) return {ok: false, status: 409, json: {error: "A sim is already running."}};
+      const base = {};
+      for (const [k, [lo, hi]] of Object.entries(LIMITS)) if (body[k] !== "" && body[k] != null && isFinite(+body[k])) base[k] = Math.min(hi, Math.max(lo, +body[k]));
+      if (/^[a-z_]+:(spread|stars)$/.test(body.export || "")) base.export = body.export;
+      base.label = String(body.label || "").slice(0, 60);
+      const seeds = (body.seeds || [base.seed ?? 7]).slice(0, 5).map(Number);
+      const batch = seeds.map(sd => ({...base, seed: sd, label: seeds.length > 1 ? `${base.label || "Seed check"} · seed ${sd}` : base.label}));
+      set({running: true, queue: batch.slice(1), current: batch[0], done: 0, log: [], error: null, finished: [], total: batch.length});
+      (async () => {
+        const stopped = new Promise(r => stopFn = r);
+        for (let i = 0; i < batch.length; i++) {
+          set({current: batch[i], queue: batch.slice(i + 1), done: 0});
+          try { if (await Promise.race([runOne(batch[i]).then(() => false), stopped.then(() => true)])) break; }
+          catch (err) { set({error: "The sim failed: " + err.message}); break; }
+        }
+        set({running: false, current: null, queue: []}); stopFn = null;
+      })();
+      return {ok: true, status: 202, json: structuredClone(job)};
+    },
+  };
+})();
+
+// ================= startup (init() is called at the end, after every declaration) =================
+async function init(){
+  bindTabs();
+  if (location.protocol.startsWith("http")) {
+    if (FORCE_MODE === "browser") BE = browserBackend;
+    else try { RUNS = await serverBackend.listRuns(); BE = serverBackend; } catch {}
+    if (BE === browserBackend) try { RUNS = await BE.listRuns(); } catch { BE = null; }
+  }
+  API = !!BE; SYNC = BE === serverBackend;
+  if (EMBED) DATA = EMBED;
+  else if (API && RUNS.length) DATA = await fetchRun(RUNS.find(r => r.id === store.get("run"))?.id || RUNS[0].id);
+  render();
+  show(location.hash.slice(1) || store.get("tab") || (DATA ? "summary" : "runs"));
+  if (SYNC) { await liveLoad(); renderLive(); } else { liveLoad(); renderLive(); }
+  if (API) pollJob();
+  if (BE === browserBackend && !RUNS.length && !store.get("autorun")) { // first visit: run one straight away
+    store.set("autorun", "1");
+    const r = await BE.startRun({auctions: 2000, seed: 7, label: "First run"});
+    if (r.ok) { JOB = r.json; show("runs"); renderJob(); pollJob(); }
+  }
+  setInterval(livePoll, 4000);
+}
+
+async function fetchRun(id){
+  try { return await BE.getRun(id); } catch { return null; }
+}
+
+async function viewRun(id){
+  const d = await fetchRun(id);
+  if (!d) return;
+  DATA = d; store.set("run", id); priceScale.v = null;
+  render(); show("summary"); window.scrollTo({top: 0});
+}
+
+function bindTabs(){
+  $$("nav.tabs button").forEach(t => t.addEventListener("click", () => {
+    show(t.dataset.tab); history.replaceState(null, "", "#" + t.dataset.tab); window.scrollTo({top: 0});
+  }));
+}
+function show(name){
+  const tabs = $$("nav.tabs button");
+  if (!tabs.some(t => t.dataset.tab === name)) name = "summary";
+  TAB = name;
+  tabs.forEach(t => t.setAttribute("aria-selected", String(t.dataset.tab === name)));
+  $$("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== name);
+  store.set("tab", name);
+  if (name === "live") livePoll();
+}
+
+// ================= page =================
+function render(){
+  const app = $("#app");
+  if (!DATA) {
+    $("#runmeta").textContent = API ? "No runs yet" : "";
+    app.innerHTML = `<section data-panel="summary" class="stack"><div class="empty">${API
+      ? `No sim results yet. Open the <b>Runs</b> tab and start one.`
+      : `No results in this page yet. Run <code>python fantasy_sim.py</code>, then open <code>output/report.html</code>, or run <code>python serve.py</code> for the full app.`}</div></section>
+      ${["live","strategies","players","schedule"].map(t => `<section data-panel="${t}" hidden><div class="empty">Run a sim first.</div></section>`).join("")}
+      <section data-panel="runs" hidden class="stack">${runsPanel()}</section>`;
+    bindRuns(); show(TAB);
+    return;
+  }
+  const S = DATA.settings, cats = DATA.cats, strats = DATA.strategies;
+  const best = strats.find(s => sameStrat(s, DATA.export)) || strats[0];
+  const lead = strats[0];
+  const baseTitle = 100 / S.teams, basePO = 100 * S.playoff_teams / S.teams;
+  const yahoo = DATA.anchor_source === "auction_values.csv";
+  const tieGap = Math.max(1, noise(lead["title_%"], S.auctions));
+
+  $("#runmeta").textContent = `${DATA.label ? DATA.label + " · " : ""}${DATA.generated} · ${S.auctions.toLocaleString()} auctions per strategy · seed ${S.seed}`;
+  document.title = DATA.demo ? "Auction Sim (demo)" : "Auction Sim";
+
+  const notices = [];
+  if (DATA.demo) notices.push(`<div class="notice"><b>Demo data.</b> These players are fake. Run without <i>demo</i> for real results.</div>`);
+  if (!yahoo) notices.push(BE === browserBackend
+    ? `<div class="notice"><b>Simulated opponents bid on the sim's own player values,</b> not Yahoo's projected prices, so real rooms may price some players differently.</div>`
+    : `<div class="notice"><b>Opponents are bidding on the sim's own values.</b> Paste Yahoo's projected prices into <code>auction_values.csv</code> so the simulated room bids like your league will.</div>`);
+
+  // ---------- summary ----------
+  const catBars = (s, compact) => cats.map(c => {
+    const v = s[`win_${c}_%`], punt = s.punts.includes(c);
+    const cls = punt ? "" : v >= 60 ? "hi" : v < 40 ? "lo" : "";
+    return `<div class="catrow${punt ? " punt" : ""}">
+      <span class="nm">${esc(c)}</span>
+      <div class="track${compact ? " mini" : ""}"><div class="fill ${cls}" style="width:${v}%"></div><div class="mid"></div></div>
+      <span class="v">${fmt(v)}%</span></div>`;
+  }).join("");
+
+  const fd = best.finish_dist, fdTotal = fd.reduce((a, b) => a + b, 0) || 1;
+  const fdPct = fd.map(n => 100 * n / fdTotal);
+  const yMax = Math.max(10, Math.ceil(Math.max(...fdPct) / 10) * 10);
+  const yTicks = [0, yMax / 2, yMax];
+  const finishChart = `<div class="finish">
+    <div class="yax">${yTicks.map(t => `<span style="bottom:${100 * t / yMax}%">${t}%</span>`).join("")}</div>
+    <div class="plot">
+      ${yTicks.slice(1).map(t => `<div class="grid" style="bottom:${100 * t / yMax}%"></div>`).join("")}
+      ${fdPct.map((p, i) => `<div class="col${i < S.playoff_teams ? " po" : ""}" style="height:${100 * p / yMax}%" title="${i + 1}${["st","nd","rd"][i] || "th"}: ${p.toFixed(1)}%"></div>`).join("")}
+    </div>
+    <div class="xax">${fd.map((_, i) => `<span>${i + 1}</span>`).join("")}</div>
+  </div>`;
+
+  const targets = DATA.players.filter(p => p.list === "target").slice(0, 8);
+  const strong = cats.filter(c => !best.punts.includes(c) && best[`win_${c}_%`] >= 60);
+  const weak = cats.filter(c => !best.punts.includes(c) && best[`win_${c}_%`] < 45);
+  const stars = DATA.players.filter(p => p.list === "target").slice(0, 3).map(p => p.name);
+  const bait = DATA.players.filter(p => p.list === "bait").slice(0, 3).map(p => p.name);
+
+  const plan = `<div class="panel">
+    <h2>Your game plan</h2>
+    <p class="sub">What the sim is telling you to do on draft day, in plain English.</p>
+    <ol class="plan">
+      <li><b>${esc(STRAT_NAMES[best.strategy] || best.strategy)}.</b> ${esc(STRAT_PLAIN[best.strategy] || "")}</li>
+      <li><b>${esc(STYLE_NAMES[best.style] || best.style)}.</b> ${esc(STYLE_PLAIN[best.style] || "")}${stars.length ? ` Top targets: ${stars.map(esc).join(", ")}.` : ""}</li>
+      <li><b>Never go past a player's max bid.</b> The sim already knows what he's worth to your build. In the Live draft tab the max bid moves with the room: up when teams are sitting on cash, down when they've overspent.</li>
+      ${bait.length ? `<li><b>Nominate bait early.</b> When it's your turn to put a player up, pick someone other teams overvalue (${bait.map(esc).join(", ")}) so they burn money you won't be competing for.</li>` : ""}
+      <li><b>Expect to win</b> ${strong.length ? strong.map(esc).join(", ") : "most categories"} most weeks${weak.length ? `, and to be shaky in ${weak.map(esc).join(", ")}` : ""}${best.punts.length ? `. You'll usually lose ${best.punts.map(esc).join(" and ")}, which is the point` : ""}.</li>
+      <li><b>Finish with $1–2 fliers.</b> Once your stars are bought, fill the bench with cheap players from the Fliers list.</li>
+    </ol>
+    <details class="gloss">
+      <summary>What do these words mean?</summary>
+      <dl>
+        <dt>9-cat head-to-head</dt><dd>Each week you play one team. Whoever has more in a category (points, rebounds, …) wins that category; turnovers are reversed, so fewer wins. Your record counts category wins, e.g. 5-4.</dd>
+        <dt>Punt</dt><dd>Deliberately giving up a category to be stronger in the rest. You only need 5 of 9 to win the week.</dd>
+        <dt>Max bid</dt><dd>The most you should ever pay for a player with this build. Let him go if the price passes it.</dd>
+        <dt>Room value / sells for</dt><dd>What the other 13 managers are expected to pay. A player who sells below your max bid is a bargain.</dd>
+        <dt>Bait</dt><dd>A player other teams like more than you do. Nominate him, let them overpay.</dd>
+        <dt>Flier</dt><dd>A cheap ($1–2) late pick with upside.</dd>
+        <dt>Inflation</dt><dd>During the auction, if teams have more money left than the remaining players are worth, prices rise. The Live tab tracks this for you.</dd>
+        <dt>z-score</dt><dd>How far above (+) or below (−) an average draftable player someone is in a category. +1 is clearly good, +2 is elite.</dd>
+        <dt>Title odds</dt><dd>How often this build won the championship across all simulated leagues. A random team wins ${fmt(baseTitle, 1)}% of the time.</dd>
+      </dl>
+    </details>
+  </div>`;
+
+  const summary = `<section data-panel="summary" class="stack" hidden>
+    ${notices.join("")}
+    <div class="panel">
+      <div class="label">${sameStrat(DATA.export, lead) ? "Best strategy" : "Exported strategy"}</div>
+      <div class="verdict">
+        <div class="big">${fmt(best["title_%"], 1)}<small>%</small></div>
+        <div>
+          <div class="vname">${esc(STRAT_NAMES[best.strategy] || best.strategy)}</div>
+          <div class="muted" style="font-weight:600">${esc(STYLE_NAMES[best.style] || best.style)}</div>
+          <div class="base">title odds vs ${fmt(baseTitle, 1)}% for a random team (±${fmt(noise(best["title_%"], S.auctions), 1)} noise)</div>
+        </div>
+      </div>
+      <div class="tiles">
+        <div class="tile"><b>${fmt(best["playoffs_%"])}%</b><span class="label">Playoffs</span></div>
+        <div class="tile"><b>${fmt(best.avg_finish, 1)}</b><span class="label">Avg finish</span></div>
+        <div class="tile"><b>${fmt(best["category_win_%"])}%</b><span class="label">Cats won</span></div>
+      </div>
+    </div>
+
+    ${plan}
+
+    <div class="panel">
+      <h2>Weekly category wins</h2>
+      <p class="sub">How often this build wins each category in a head-to-head week. The notch marks 50%.</p>
+      <div class="cats">${catBars(best)}</div>
+      <div class="legend"><span><span class="chip good">60%+</span> strength</span><span><span class="chip bad">&lt;40%</span> weakness</span><span>Faded rows are punted</span></div>
+    </div>
+
+    <div class="panel">
+      <h2>Where you finish</h2>
+      <p class="sub">Regular-season standing across ${S.auctions.toLocaleString()} simulated leagues. Orange bars make the ${S.playoff_teams}-team playoffs.</p>
+      ${finishChart}
+    </div>
+
+    <div class="panel"${BE === browserBackend ? " hidden" : ""}>
+      <h2>Draft Desk import</h2>
+      <p class="sub">Top targets, $1–2 fliers and bait players, ready for Draft Desk &gt; Add targets &gt; Bulk import. Not needed if you use the Live draft tab.</p>
+      <div class="row">
+        <button class="btn" id="copy" type="button">Copy import list</button>
+        <button class="btn ghost" id="toggle-import" type="button" aria-expanded="false">Show list</button>
+        <span class="toast" id="copied" hidden>Copied</span>
+      </div>
+      <pre class="import" id="import" hidden>${esc(DATA.draft_targets)}</pre>
+      <div class="label" style="margin-top:16px">Top targets</div>
+      <div class="plist" style="margin-top:8px">${targets.map(p => playerRow(p, true)).join("")}</div>
+    </div>
+  </section>`;
+
+  // ---------- strategies ----------
+  const tMax = Math.max(...strats.map(s => s["title_%"]), 1);
+  const strategies = `<section data-panel="strategies" hidden>
+    <div class="panel">
+      <h2>Strategy ranking</h2>
+      <p class="sub">Title odds for each build. With ${S.auctions.toLocaleString()} auctions, gaps under about ${fmt(tieGap, 1)} points are within noise; use <b>Check 3 seeds</b> on the Runs tab to settle it. Tap a build for its category profile.</p>
+      <div class="strats">${strats.map((s, i) => {
+        const tied = i > 0 && lead["title_%"] - s["title_%"] <= tieGap;
+        const isExport = sameStrat(s, DATA.export);
+        return `<details class="strat${i === 0 ? " lead" : ""}">
+          <summary>
+            <div class="nm">${stratLabel(s)}
+              <div class="row" style="margin-top:4px">${i === 0 ? `<span class="chip accent">Leader</span>` : ""}${tied ? `<span class="chip">Within noise</span>` : ""}${isExport ? `<span class="chip good">Exported</span>` : ""}</div>
+            </div>
+            <div class="pct">${fmt(s["title_%"], 1)}<small>%</small></div>
+            <div class="bars">
+              <div class="track mini"><div class="fill" style="width:${100 * s["title_%"] / tMax}%"></div></div>
+            </div>
+            <div class="stats"><span>Playoffs <b>${fmt(s["playoffs_%"])}%</b></span><span>Avg finish <b>${fmt(s.avg_finish, 1)}</b></span><span>Cats won <b>${fmt(s["category_win_%"])}%</b></span></div>
+          </summary>
+          <div class="body">
+            <p class="sub" style="margin:0 0 10px">${esc(STRAT_PLAIN[s.strategy] || "")}</p>
+            <div class="cats">${catBars(s, true)}</div>
+          </div>
+        </details>`;
+      }).join("")}</div>
+      <p class="sub" style="margin:14px 0 0">Baselines for a random team: ${fmt(baseTitle, 1)}% title, ${fmt(basePO, 1)}% playoffs. The simulated you bids with perfect discipline, so every build beats the baseline; compare builds to each other.</p>
+    </div>
+  </section>`;
+
+  // ---------- players ----------
+  const players = `<section data-panel="players" hidden>
+    <div class="panel">
+      <h2>Player prices</h2>
+      <p class="sub">Max bids for ${esc(stratName(best))}. The bar shows what each player sold for across simulated rooms: shaded band is the middle 80%, dark tick the median, orange tick your max bid.</p>
+      <div class="filters">
+        <div class="two">
+          <input id="q" type="search" placeholder="Search players or teams" autocomplete="off" aria-label="Search players">
+          <select id="sort" aria-label="Sort players">
+            <option value="max_bid">Max bid</option>
+            <option value="bargain">Bargain</option>
+            <option value="you_bought_%">Most landed</option>
+            <option value="room_value">Room value</option>
+          </select>
+        </div>
+        <div class="chips" id="filter">
+          ${[["all","All"],["target","Targets"],["flier","Fliers"],["bait","Bait"],["guard","Guards"],["wing","Wings"],["big","Bigs"]]
+            .map(([k, l]) => `<button type="button" data-f="${k}" aria-pressed="${k === "all"}">${l}</button>`).join("")}
+        </div>
+      </div>
+      <div class="plist" id="plist"></div>
+      <div style="display:grid"><button class="btn ghost more" id="more" type="button" hidden>Show more</button></div>
+    </div>
+  </section>`;
+
+  // ---------- schedule ----------
+  const sched = [...DATA.playoff_schedule].map(r => ({...r, total: r.games.reduce((a, b) => a + b, 0)}))
+    .sort((a, b) => b.total - a.total || a.team.localeCompare(b.team));
+  const schedule = `<section data-panel="schedule" hidden>
+    <div class="panel">
+      <h2>Fantasy playoff games</h2>
+      <p class="sub">NBA games per team in fantasy playoff weeks. More games means more stats when it counts; use it to break ties at the draft and before the trade deadline.</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Team</th>${DATA.playoff_weeks.map(w => `<th>${esc(w.label)}<small>${esc(w.dates)}</small></th>`).join("")}<th>Total</th></tr></thead>
+        <tbody>${sched.map(r => `<tr><td>${esc(r.team)}</td>${r.games.map(g => `<td class="g${g >= 4 ? " g4" : g <= 2 ? " g2" : ""}">${g}</td>`).join("")}<td class="tot">${r.total}</td></tr>`).join("")}</tbody>
+      </table></div>
+    </div>
+  </section>`;
+
+  app.innerHTML = summary + liveSkeleton() + strategies + players + schedule +
+    `<section data-panel="runs" hidden class="stack">${runsPanel()}</section>` +
+    `<footer>${S.pool} players in the pool · ${S.teams} teams · $${S.budget} budgets · ${S.roster}-man rosters · ${S.reg_weeks} regular-season weeks · ${S.replicates} simulated seasons per player · bid noise σ ${S.sigma}${DATA.data_exported ? ` · stats exported ${esc(DATA.data_exported)}` : ""}<br>Opponents anchor on: ${esc(DATA.anchor_source)}</footer>`;
+
+  bindSummary(); bindPlayers(); bindLive(); bindRuns();
+  renderLive();
+  show(TAB);
+}
+
+function bindSummary(){
+  $("#copy").addEventListener("click", async () => {
+    const pre = $("#import");
+    try { await navigator.clipboard.writeText(DATA.draft_targets); }
+    catch {
+      pre.hidden = false;
+      const r = document.createRange(); r.selectNodeContents(pre);
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      document.execCommand && document.execCommand("copy");
+    }
+    const t = $("#copied"); t.hidden = false; setTimeout(() => t.hidden = true, 1800);
+  });
+  $("#toggle-import").addEventListener("click", e => {
+    const pre = $("#import"); pre.hidden = !pre.hidden;
+    e.target.textContent = pre.hidden ? "Show list" : "Hide list";
+    e.target.setAttribute("aria-expanded", String(!pre.hidden));
+  });
+}
+
+function bindPlayers(){
+  let filter = "all", shown = 40;
+  const all = DATA.players.map(p => ({...p, bargain: p.max_bid - (p.sells_median ?? 0)}));
+  function renderPlayers(){
+    const q = $("#q").value.trim().toLowerCase();
+    const k = $("#sort").value;
+    let rows = all.filter(p =>
+      (filter === "all" || p.list === filter || (["guard","wing","big"].includes(filter) && posKind(p) === filter)) &&
+      (!q || p.name.toLowerCase().includes(q) || key(p.name).includes(key(q)) || String(p.team).toLowerCase().includes(q)));
+    rows.sort((a, b) => (b[k] ?? -1e9) - (a[k] ?? -1e9));
+    $("#plist").innerHTML = rows.length ? rows.slice(0, shown).map(p => playerRow(p)).join("") : `<div class="empty">No players match.</div>`;
+    $("#more").hidden = rows.length <= shown;
+    $("#more").textContent = `Show more (${rows.length - shown} left)`;
+  }
+  $("#q").addEventListener("input", () => { shown = 40; renderPlayers(); });
+  $("#sort").addEventListener("change", () => { shown = 40; renderPlayers(); });
+  $("#more").addEventListener("click", () => { shown += 60; renderPlayers(); });
+  $("#filter").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    filter = b.dataset.f; shown = 40;
+    $$("#filter button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    renderPlayers();
+  });
+  renderPlayers();
+}
+
+function priceScale(){
+  if (priceScale.v) return priceScale.v;
+  const m = Math.max(...DATA.players.map(p => Math.max(p.sells_p90 ?? 0, p.max_bid)));
+  return priceScale.v = Math.max(10, Math.ceil(m / 10) * 10);
+}
+
+function zGrid(vals){
+  const zc = v => v == null ? "" : v >= 0.5 ? "background:var(--good-soft);color:var(--good)" : v <= -0.5 ? "background:var(--bad-soft);color:var(--bad)" : "background:var(--sunk)";
+  return `<div class="zgrid">${DATA.cats.map(c => `<div class="h">${esc(c)}</div>`).join("")}${vals.map(v => `<div style="${zc(v)}">${v == null ? "–" : (v > 0 ? "+" : "") + v.toFixed(1)}</div>`).join("")}</div>`;
+}
+
+function playerRow(p, compact){
+  const M = priceScale(), pc = v => `${Math.min(100, 100 * (v ?? 0) / M)}%`;
+  const kind = p.list && p.list !== "target" ? p.list : posKind(p);
+  const tags = [`<span class="chip ${TYPE_CHIP[kind] || ""}">${esc(kind)}</span>`];
+  if (p.sells_p10 != null && p.sells_p10 > p.max_bid && p.list !== "bait") tags.push(`<span class="chip bad">Out of reach</span>`);
+  else if (p.sells_median != null && p.max_bid >= 3 && p.sells_median <= p.max_bid * 0.85) tags.push(`<span class="chip good">Bargain</span>`);
+  const band = p.sells_p10 == null ? "" :
+    `<div class="band" style="left:${pc(p.sells_p10)};width:calc(${pc(p.sells_p90)} - ${pc(p.sells_p10)})"></div><div class="med" style="left:${pc(p.sells_median)}"></div>`;
+  return `<details class="player">
+    <summary>
+      <div class="who"><b>${esc(p.name)}</b><div class="meta">${esc(p.team)}${p.pos ? " · " + esc(p.pos) : ""} ${tags.join("")}</div></div>
+      <div class="bid${p.max_bid ? "" : " zero"}">$${p.max_bid}<small>max bid</small></div>
+      <div class="range" aria-hidden="true"><div class="rail"></div>${band}<div class="mx" style="left:${pc(p.max_bid)}"></div></div>
+      <div class="line">Sells $${fmt(p.sells_median)} (${fmt(p.sells_p10)}–${fmt(p.sells_p90)})${compact ? "" : ` · you landed him ${fmt(p["you_bought_%"])}%`}</div>
+    </summary>
+    <div class="detail">
+      <div class="facts"><span>Room value <b>$${fmt(p.room_value)}</b></span><span>Avg you paid <b>${p.avg_you_paid == null ? "–" : "$" + fmt(p.avg_you_paid)}</b></span><span>Projected games <b>${p.games_proj}</b></span></div>
+      <div>
+        <div class="label" style="margin-bottom:4px">Category z-scores</div>
+        ${zGrid(DATA.cats.map(c => p[`z_${c}`]))}
+      </div>
+    </div>
+  </details>`;
+}
+
+// ================= runs: start, history, compare =================
+function runsPanel(){
+  if (!API) return `<div class="panel"><h2>Runs</h2><p class="sub" style="margin:0">Start the app server to run sims and compare them from this page:</p><pre class="import">cd fantasy-sim
+python serve.py</pre><p class="sub" style="margin:10px 0 0">Then open the address it prints, on this computer or your phone.</p></div>`;
+  const S = DATA?.settings || {auctions: BE === browserBackend ? 2000 : 1000, seed: 7, sigma: 0.3, pool: 320, replicates: 200};
+  return `<div class="panel">
+      <h2>New sim</h2>
+      <p class="sub">Each run simulates thousands of auctions and seasons for all 10 builds. ${BE === browserBackend
+        ? "It runs on your device and nothing is uploaded: 2,000 auctions takes a few seconds on a laptop, a bit longer on a phone."
+        : "1,000 auctions takes a few minutes."}</p>
+      <form class="form" id="runform">
+        <div class="grid2">
+          <label class="field"><span>Name (optional)</span><input name="label" maxlength="60" placeholder="e.g. with Yahoo prices"></label>
+          <label class="field"><span>Auctions per build</span><input name="auctions" type="number" inputmode="numeric" min="20" max="${BE === browserBackend ? 10000 : 5000}" step="10" value="${S.auctions >= 500 ? S.auctions : BE === browserBackend ? 2000 : 1000}"><small>More = less noise, slower</small></label>
+          <label class="field"><span>Seed</span><input name="seed" type="number" inputmode="numeric" min="0" value="${(S.seed ?? 7)}"><small>Different seed = different random leagues</small></label>
+        </div>
+        <details class="adv"><summary>Advanced</summary>
+          <div class="grid2">
+            <label class="field"><span>Opponent bid noise σ</span><input name="sigma" type="number" step="0.05" min="0.05" max="1" value="${S.sigma}"><small>How much rivals disagree on prices</small></label>
+            <label class="field"><span>Player pool</span><input name="pool" type="number" min="220" max="450" value="${Math.max(220, S.pool >= 300 ? 320 : S.pool)}"></label>
+            <label class="field"><span>Seasons per player</span><input name="replicates" type="number" min="20" max="1000" value="${S.replicates}"></label>
+            <label class="field"><span>Export build</span><select name="export"><option value="">Best one</option>${Object.keys(STRAT_NAMES).flatMap(s => Object.keys(STYLE_NAMES).map(st => `<option value="${s}:${st}">${esc(STRAT_NAMES[s])} · ${esc(STYLE_NAMES[st])}</option>`)).join("")}</select></label>
+          </div>
+          ${BE === browserBackend ? "" : `<label class="check" style="margin-top:10px"><input type="checkbox" name="demo"> Fake demo players (quick install check)</label>`}
+        </details>
+        <div class="row">
+          <button class="btn" type="submit" data-mode="one">Run sim</button>
+          <button class="btn ghost" type="submit" data-mode="seeds" title="Runs the same settings with three seeds">Check 3 seeds</button>
+        </div>
+        <div class="err" id="runerr" hidden></div>
+      </form>
+    </div>
+    <div class="panel" id="jobpanel" hidden></div>
+    <div class="panel" id="cmppanel" hidden></div>
+    <div class="panel">
+      <h2>Run history</h2>
+      <p class="sub">Tap <b>View</b> to load a run into the other tabs. Tick two or more to compare them.</p>
+      <div class="runs" id="runlist"></div>
+    </div>`;
+}
+
+function bindRuns(){
+  if (!API) return;
+  const form = $("#runform");
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const fd = new FormData(form), body = Object.fromEntries(fd);
+    body.demo = fd.has("demo");
+    if (e.submitter?.dataset.mode === "seeds") { const s = +body.seed || 0; body.seeds = [s, s + 1, s + 2]; }
+    const err = $("#runerr"); err.hidden = true;
+    const {ok, json: j} = await BE.startRun(body);
+    if (!ok) { err.textContent = j.error || "Couldn't start the sim."; err.hidden = false; return; }
+    JOB = j; renderJob(); pollJob();
+  });
+  renderRuns(); renderJob(); renderCompare();
+}
+
+function renderRuns(){
+  const el = $("#runlist"); if (!el) return;
+  if (!RUNS.length) { el.innerHTML = `<div class="empty">No runs yet.</div>`; return; }
+  el.innerHTML = RUNS.map(r => {
+    const L = r.leader, viewing = DATA && r.id === DATA.id;
+    return `<div class="run${viewing ? " viewing" : ""}">
+      <input type="checkbox" class="cmpchk" data-id="${r.id}" aria-label="Compare this run" ${compareSel.has(r.id) ? "checked" : ""} style="width:18px;height:18px;accent-color:var(--accent)">
+      <div class="t"><b>${esc(r.label || r.generated)}</b>
+        <div class="meta">${r.label ? esc(r.generated) + " · " : ""}${r.settings.auctions.toLocaleString()} auctions · seed ${r.settings.seed}${r.demo ? " · demo" : ""}${r.anchor_source === "auction_values.csv" ? " · Yahoo prices" : ""}</div>
+        <div class="meta">Leader: ${esc(stratName(L))}</div></div>
+      <div class="p">${fmt(L["title_%"], 1)}%<small>title</small></div>
+      <div class="acts">${viewing ? `<span class="chip accent">Viewing</span>` : `<button class="btn ghost sm" data-view="${r.id}" type="button">View</button>`}
+        <button class="btn danger sm" data-del="${r.id}" type="button">Delete</button></div>
+    </div>`;
+  }).join("");
+  el.onclick = async e => {
+    const v = e.target.closest("[data-view]"), d = e.target.closest("[data-del]");
+    if (v) viewRun(v.dataset.view);
+    if (d && confirm("Delete this run? (It's moved to output/trash.)")) {
+      await BE.deleteRun(d.dataset.del);
+      compareSel.delete(d.dataset.del);
+      await refreshRuns();
+    }
+  };
+  el.onchange = e => {
+    const c = e.target.closest(".cmpchk"); if (!c) return;
+    c.checked ? compareSel.add(c.dataset.id) : compareSel.delete(c.dataset.id);
+    renderCompare();
+  };
+}
+
+async function refreshRuns(){
+  try { RUNS = await BE.listRuns(); } catch { return; }
+  for (const id of [...compareSel]) if (!RUNS.some(r => r.id === id)) compareSel.delete(id);
+  if (!DATA && RUNS.length) { await viewRun(RUNS[0].id); show("runs"); }
+  renderRuns(); renderCompare();
+}
+
+function renderCompare(){
+  const el = $("#cmppanel"); if (!el) return;
+  const runs = RUNS.filter(r => compareSel.has(r.id)).reverse();
+  el.hidden = runs.length < 2;
+  if (runs.length < 2) return;
+  const keys = runs[0].strategies.map(s => s.strategy + ":" + s.style);
+  const rows = keys.map(k => {
+    const vals = runs.map(r => r.strategies.find(s => s.strategy + ":" + s.style === k)?.["title_%"] ?? null);
+    const got = vals.filter(v => v != null);
+    const [strategy, style] = k.split(":");
+    return {strategy, style, vals, avg: got.reduce((a, b) => a + b, 0) / (got.length || 1), lo: Math.min(...got), hi: Math.max(...got),
+            leads: runs.filter(r => r.leader.strategy === strategy && r.leader.style === style).length};
+  }).sort((a, b) => b.avg - a.avg);
+  const top = rows[0], second = rows[1];
+  const n = Math.min(...runs.map(r => r.settings.auctions));
+  const pooled = Math.SQRT2 * noise(top.avg, n) / Math.sqrt(runs.length); // noise on the gap between two builds
+  const mixed = new Set(runs.map(r => (r.demo ? "d" : "r") + (r.anchor_source === "auction_values.csv" ? "y" : "z"))).size > 1;
+  const clear = top.avg - second.avg > pooled;
+  el.innerHTML = `<h2>Compare ${runs.length} runs</h2>
+    <p class="sub">Title odds per build in each run, sorted by the average. <b>${esc(stratName(top))}</b> ${clear
+      ? `is ahead by ${fmt(top.avg - second.avg, 1)} points on average, more than the ~${fmt(pooled, 1)}-point noise, so it's a real edge.`
+      : `and <b>${esc(stratName(second))}</b> are within ~${fmt(pooled, 1)} points of each other, so treat them as tied; either is fine.`}
+      ${mixed ? ` <span class="err">These runs use different data or price sources, so they aren't strictly comparable.</span>` : ""}</p>
+    <div class="tablewrap"><table class="cmp">
+      <thead><tr><th>Build</th><th>Avg</th><th>Led</th>${runs.map(r => `<th>${esc(r.label || r.generated.slice(5))}<small>seed ${r.settings.seed}</small></th>`).join("")}<th>Range</th></tr></thead>
+      <tbody>${rows.map((x, i) => `<tr class="${i === 0 ? "top" : ""}"><td>${esc(stratName(x))}</td><td class="avg">${fmt(x.avg, 1)}</td><td>${x.leads}/${runs.length}</td>${x.vals.map((v, j) =>
+        `<td class="${runs[j].leader.strategy === x.strategy && runs[j].leader.style === x.style ? "lead" : ""}">${v == null ? "–" : fmt(v, 1)}</td>`).join("")}
+        <td>${fmt(x.lo, 0)}–${fmt(x.hi, 0)}</td></tr>`).join("")}</tbody>
+    </table></div>`;
+}
+
+function renderJob(){
+  const el = $("#jobpanel"); if (!el) return;
+  const j = JOB;
+  const busy = !!j?.running;
+  $$("#runform button[type=submit]").forEach(b => b.disabled = busy);
+  if (busy) jobSeen = true;
+  if (!j || !jobSeen) { el.hidden = true; return; }
+  el.hidden = false;
+  const total = j.total || 1, idx = total - (j.queue?.length || 0) - (busy ? 1 : 0);
+  const pct = busy ? 100 * (idx + Math.min(j.done, 10) / 10) / total : 100;
+  el.innerHTML = `<div class="row" style="justify-content:space-between">
+      <h2>${busy ? "Simulating…" : j.error ? "Sim stopped" : "Done"}</h2>
+      ${busy ? `<button class="btn danger sm" id="cancel" type="button">Cancel</button>` : ""}
+    </div>
+    <p class="sub" style="margin:4px 0 0">${busy ? `${total > 1 ? `Run ${idx + 1} of ${total} · ` : ""}${j.done} of 10 builds finished${j.current ? ` · seed ${j.current.seed}` : ""}` :
+      j.error ? "" : `${j.finished.length} new run${j.finished.length === 1 ? "" : "s"} saved.`}</p>
+    <div class="prog" role="progressbar" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100"><div style="width:${pct}%"></div></div>
+    ${j.error ? `<div class="err">${esc(j.error)}</div>` : ""}
+    <details${j.error ? " open" : ""}><summary class="label" style="cursor:pointer">Log</summary><pre class="log">${esc((j.log || []).slice(-25).join("\n"))}</pre></details>`;
+  const c = $("#cancel"); if (c) c.onclick = async () => { await BE.cancel(); pollJob(); };
+}
+
+let jobTimer = null;
+async function pollJob(){
+  clearTimeout(jobTimer);
+  const was = JOB?.running;
+  try { JOB = await BE.job(); } catch { return; }
+  renderJob();
+  if (JOB.running) { jobTimer = setTimeout(pollJob, document.hidden ? 5000 : BE === browserBackend ? 400 : 1500); return; }
+  if (was) {
+    await refreshRuns();
+    if (JOB.finished?.length > 1) { compareSel.clear(); JOB.finished.forEach(id => compareSel.add(id)); renderRuns(); renderCompare(); }
+    else if (JOB.finished?.length === 1 && !JOB.error) { await viewRun(JOB.finished[0]); }
+  }
+}
+
+// ================= live draft =================
+let LIVE = {rev: 0, state: null, saving: false, err: ""};
+const defLive = () => {
+  const S = DATA?.settings || {teams: 14, budget: 200, roster: 15};
+  return {budget: S.budget, spots: S.roster, teams: ["Me", ...Array.from({length: S.teams - 1}, (_, i) => `Team ${i + 2}`)], sales: []};
+};
+
+// fill in anything missing so an old or hand-edited draft file can't break the page
+function liveFix(st){
+  const d = defLive(), s = Object.assign(d, st && typeof st === "object" ? st : {});
+  if (!Array.isArray(s.teams) || !s.teams.length) s.teams = defLive().teams;
+  s.sales = (Array.isArray(s.sales) ? s.sales : []).filter(x => x && x.name && x.price >= 0 && x.team >= 0 && x.team < s.teams.length);
+  s.budget = +s.budget || d.budget; s.spots = +s.spots || d.spots;
+  return s;
+}
+
+async function liveLoad(){
+  if (SYNC) {
+    try {
+      const j = await (await fetch("api/draft", {cache: "no-store"})).json();
+      LIVE.rev = j.rev; LIVE.state = liveFix(j.state); LIVE.err = "";
+    } catch { LIVE.err = "Can't reach the server"; LIVE.state ??= defLive(); }
+  } else {
+    try { LIVE.state = liveFix(JSON.parse(store.get("live"))); } catch { LIVE.state = defLive(); }
+  }
+}
+
+async function livePoll(){
+  if (!SYNC || TAB !== "live" || document.hidden || LIVE.saving) return;
+  try {
+    const j = await (await fetch("api/draft", {cache: "no-store"})).json();
+    LIVE.err = "";
+    if (j.rev !== LIVE.rev) { LIVE.rev = j.rev; LIVE.state = liveFix(j.state); renderLive(); }
+    else renderSync();
+  } catch { LIVE.err = "Can't reach the server"; renderSync(); }
+}
+
+// Apply a change locally, then save it; if another device saved first, reapply on top of theirs.
+async function liveCommit(mut){
+  const s = structuredClone(LIVE.state); mut(s); LIVE.state = s; renderLive();
+  if (!SYNC) { store.set("live", JSON.stringify(s)); return; }
+  LIVE.saving = true;
+  try {
+    for (let tries = 0; tries < 4; tries++) {
+      const r = await fetch("api/draft", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify({rev: LIVE.rev, state: LIVE.state})});
+      const j = await r.json();
+      if (r.ok) { LIVE.rev = j.rev; LIVE.err = ""; break; }
+      if (r.status !== 409) { LIVE.err = "Not saved"; break; }
+      const s2 = liveFix(structuredClone(j.state)); mut(s2);
+      LIVE.rev = j.rev; LIVE.state = s2; renderLive();
+    }
+  } catch { LIVE.err = "Not saved: can't reach the server"; }
+  LIVE.saving = false; renderSync();
+}
+
+// derived numbers for the current draft state
+function liveModel(){
+  const st = LIVE.state, T = st.teams.length;
+  const byKey = new Map(DATA.players.map(p => [key(p.name), p]));
+  const soldKeys = new Set(st.sales.map(s => key(s.name)));
+  const money = Array(T).fill(st.budget), spots = Array(T).fill(st.spots);
+  for (const s of st.sales) { if (s.team < T) { money[s.team] -= s.price; spots[s.team] -= 1; } }
+  const maxBid = money.map((m, t) => spots[t] > 0 ? Math.max(0, m - (spots[t] - 1)) : 0);
+  const avail = DATA.players.filter(p => !soldKeys.has(key(p.name)));
+  // inflation: money left in the room vs value of the players who will fill the remaining spots
+  const value = (list, n) => list.map(p => Math.max(1, p.room_value || 0)).sort((a, b) => b - a).slice(0, n).reduce((a, b) => a + b, 0);
+  const slots = spots.reduce((a, b) => a + Math.max(0, b), 0);
+  const cash = money.reduce((a, m, t) => a + (spots[t] > 0 ? m : 0), 0);
+  const base = (T * st.budget) / (value(DATA.players, T * st.spots) || 1);
+  const now = slots ? cash / (value(avail, slots) || 1) : base;
+  const factor = Math.min(1.6, Math.max(0.5, now / base));
+  const adj = p => p.max_bid <= 0 ? 0 : Math.max(1, Math.min(Math.round(p.max_bid * factor), maxBid[0]));
+  const mine = st.sales.filter(s => s.team === 0).map(s => ({...s, p: byKey.get(key(s.name))}));
+  return {st, T, byKey, money, spots, maxBid, avail, factor, adj, mine};
+}
+
+function liveSkeleton(){
+  return `<section data-panel="live" hidden class="stack">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between"><h2>Live draft</h2><span class="sync" id="sync"></span></div>
+      <p class="sub">Record every sale as it happens. Your max bids adjust to the money left in the room.${SYNC ? " Saved on this computer, so your phone and laptop stay in sync." : BE ? " Saved in this browser on this device." : " Saved in this browser only; run <code>serve.py</code> to sync devices."}</p>
+      <div class="status" id="lstatus"></div>
+      <div id="lwarn"></div>
+    </div>
+    <div class="panel block">
+      <h2>On the block</h2>
+      <label class="field"><span>Player being auctioned</span>
+        <input id="blk" class="inp" list="blk-list" placeholder="Start typing a name" autocomplete="off" enterkeyhint="done"></label>
+      <datalist id="blk-list"></datalist>
+      <div id="blkcard"></div>
+      <form class="sold" id="soldform">
+        <label class="field"><span>Sold for $</span><input name="price" type="number" inputmode="numeric" min="1" required class="inp"></label>
+        <label class="field"><span>Bought by</span><select name="team" class="inp" id="soldteam" required></select></label>
+        <button class="btn" type="submit">Record sale</button>
+      </form>
+      <div class="err" id="solderr" hidden></div>
+    </div>
+    <div class="cols2">
+      <div class="panel"><h2>My team</h2><div id="lmine"></div></div>
+      <div class="panel"><h2>Best still available</h2><p class="sub">Your targets, by adjusted max bid. Tap a name to put him on the block.</p><div class="mini-list" id="ltargets"></div></div>
+      <div class="panel"><h2>Nominate these</h2><p class="sub">When it's your turn, put up players other teams pay more for than you would. They spend; you don't.</p><div class="mini-list" id="lbait"></div></div>
+      <div class="panel"><h2>Other teams</h2><p class="sub">Tap a name to rename it. Max = the most that team can bid right now.</p><div class="tablewrap" id="lteams"></div></div>
+    </div>
+    <div class="panel"><h2>Sales log</h2><div class="mini-list" id="llog"></div>
+      <details class="adv" style="margin-top:14px"><summary>Draft settings</summary>
+        <form class="form" id="livesettings"><div class="grid2">
+          <label class="field"><span>Budget $</span><input name="budget" type="number" min="1" class="inp"></label>
+          <label class="field"><span>Roster spots</span><input name="spots" type="number" min="1" class="inp"></label>
+        </div><div class="row"><button class="btn ghost sm" type="submit">Save</button><button class="btn danger sm" type="button" id="livereset">Reset draft</button></div></form>
+      </details>
+    </div>
+  </section>`;
+}
+
+function bindLive(){
+  $("#blk").addEventListener("input", renderBlock);
+  $("#soldform").addEventListener("submit", e => {
+    e.preventDefault();
+    const name = $("#blk").value.trim(), f = new FormData(e.target), err = $("#solderr");
+    const p = findPlayer(name), price = Math.round(+f.get("price")), team = +f.get("team");
+    const m = liveModel();
+    err.hidden = true;
+    const fail = msg => { err.textContent = msg; err.hidden = false; };
+    if (!name) return fail("Type the player's name first.");
+    const nm = p ? p.name : name;
+    if (LIVE.state.sales.some(s => key(s.name) === key(nm))) return fail(`${nm} is already marked sold.`);
+    if (!(price >= 1)) return fail("Enter the price.");
+    if (m.spots[team] <= 0) return fail(`${LIVE.state.teams[team]} has a full roster.`);
+    if (price > m.maxBid[team] && !confirm(`${LIVE.state.teams[team]} can only bid $${m.maxBid[team]}. Record $${price} anyway?`)) return;
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    liveCommit(s => { if (!s.sales.some(x => x.id === id)) s.sales.push({id, name: nm, price, team, at: Date.now()}); });
+    $("#blk").value = ""; e.target.reset(); renderBlock();
+  });
+  $("#livesettings").addEventListener("submit", e => {
+    e.preventDefault();
+    const f = new FormData(e.target), b = Math.max(1, +f.get("budget") || 200), sp = Math.max(1, +f.get("spots") || 15);
+    liveCommit(s => { s.budget = b; s.spots = sp; });
+  });
+  $("#livereset").addEventListener("click", () => {
+    if (confirm("Clear every sale and start the draft over? This affects all your devices.")) liveCommit(s => Object.assign(s, defLive(), {teams: s.teams}));
+  });
+  const pick = e => {
+    const b = e.target.closest("[data-pick]");
+    if (b) { $("#blk").value = b.dataset.pick; renderBlock(); $("#blk").scrollIntoView({block: "center", behavior: "smooth"}); }
+  };
+  ["#ltargets", "#lbait"].forEach(s => $(s).addEventListener("click", pick));
+  $("#llog").addEventListener("click", e => {
+    const u = e.target.closest("[data-undo]"); if (!u) return;
+    const sale = LIVE.state.sales.find(s => s.id === u.dataset.undo);
+    if (sale && confirm(`Undo: ${sale.name} for $${sale.price}?`)) liveCommit(s => { s.sales = s.sales.filter(x => x.id !== u.dataset.undo); });
+  });
+  $("#lteams").addEventListener("change", e => {
+    const i = e.target.closest("[data-team]"); if (!i) return;
+    const t = +i.dataset.team, v = i.value.trim().slice(0, 30) || `Team ${t + 1}`;
+    liveCommit(s => { s.teams[t] = v; });
+  });
+}
+
+function findPlayer(name){
+  const k = key(name); if (!k) return null;
+  return DATA.players.find(p => key(p.name) === k) || DATA.players.find(p => key(p.name).startsWith(k)) ||
+         (k.length >= 4 ? DATA.players.find(p => key(p.name).includes(k)) : null);
+}
+
+function renderSync(){
+  const el = $("#sync"); if (!el) return;
+  el.className = "sync" + (LIVE.err ? " bad" : "");
+  el.textContent = LIVE.err || (LIVE.saving ? "Saving…" : SYNC ? "Synced" : "This browser only");
+}
+
+function renderLive(){
+  if (!DATA || !LIVE.state || !$("#lstatus")) return;
+  const m = liveModel(), st = m.st;
+  const infl = Math.round((m.factor - 1) * 100);
+  $("#lstatus").innerHTML = `
+    <div class="tile"><b>$${m.money[0]}</b><span class="label">Money left</span></div>
+    <div class="tile"><b>${m.spots[0]}</b><span class="label">Spots left</span></div>
+    <div class="tile"><b>$${m.maxBid[0]}</b><span class="label">Most you can bid</span></div>
+    <div class="tile ${infl >= 5 ? "hot" : infl <= -5 ? "cold" : ""}"><b>${infl > 0 ? "+" : ""}${infl}%</b><span class="label">${infl >= 5 ? "Prices running hot" : infl <= -5 ? "Prices running cold" : "Room inflation"}</span></div>`;
+  const warn = [];
+  warn.push(`Prices from ${DATA.label || "run " + DATA.generated} (${stratName(DATA.strategies.find(s => sameStrat(s, DATA.export)) || DATA.strategies[0])}). Switch on the Runs tab.`);
+  if (DATA.demo) warn.push("This run uses fake demo players. View a real run before the draft.");
+  if (st.budget !== DATA.settings.budget || st.spots !== DATA.settings.roster) warn.push(`Draft settings ($${st.budget}, ${st.spots} spots) differ from the sim's ($${DATA.settings.budget}, ${DATA.settings.roster}).`);
+  if (m.spots[0] > 0 && m.maxBid[0] === 1) warn.push("You're down to $1 per remaining spot: only bid $1 from here.");
+  $("#lwarn").innerHTML = warn.map(w => `<div class="notice" style="margin-top:10px">${esc(w)}</div>`).join("");
+
+  $("#blk-list").innerHTML = m.avail.map(p => `<option value="${esc(p.name)}">`).join("");
+  const sel = $("#soldteam"), prev = sel.value;
+  sel.innerHTML = `<option value="" disabled>Choose…</option>` + st.teams.map((t, i) => `<option value="${i}"${m.spots[i] <= 0 ? " disabled" : ""}>${esc(t)}${i ? ` ($${m.maxBid[i]} max)` : ""}</option>`).join("");
+  sel.value = prev !== "" && m.spots[+prev] > 0 ? prev : "";
+  renderBlock(m);
+
+  // my team
+  const prof = DATA.cats.map(c => {
+    const vals = m.mine.filter(x => x.p).map(x => x.p[`z_${c}`] ?? 0);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) : null;
+  });
+  const counts = {guard: 0, wing: 0, big: 0};
+  m.mine.forEach(x => { if (x.p) counts[posKind(x.p)]++; });
+  const spent = st.budget - m.money[0];
+  $("#lmine").innerHTML = m.mine.length ? `
+    <div class="mini-list">${m.mine.map(x => `<div><span><b>${esc(x.name)}</b> <span class="muted">${x.p ? esc(x.p.team + " · " + (x.p.pos || "")) : "not in sim pool"}</span></span><span>$${x.price}${x.p ? ` <span class="muted">/ ${x.p.max_bid}</span>` : ""}</span></div>`).join("")}</div>
+    <div class="label" style="margin:14px 0 4px">Category strength (sum of z-scores)</div>
+    ${zGrid(prof.map(v => v == null ? null : v / Math.max(1, Math.sqrt(m.mine.length))))}
+    <div class="poscount"><span class="chip">${counts.guard} guards</span><span class="chip">${counts.wing} wings</span><span class="chip">${counts.big} bigs</span><span class="chip">$${spent} spent</span></div>`
+    : `<div class="empty">Nobody yet. When you win a player, record the sale with “Me”.</div>`;
+
+  // targets / bait
+  const tg = m.avail.filter(p => p.list !== "bait" && p.max_bid >= 1).sort((a, b) => m.adj(b) - m.adj(a) || b.max_bid - a.max_bid).slice(0, 12);
+  $("#ltargets").innerHTML = tg.map(p => `<div><button class="name" type="button" data-pick="${esc(p.name)}">${esc(p.name)}</button><b>$${m.adj(p)}</b>
+    <span class="sub2">${esc(p.team)} · ${esc(p.pos || posKind(p))} · sells ~$${fmt(p.sells_median)}</span></div>`).join("") || `<div class="empty">No targets left.</div>`;
+  const bt = m.avail.filter(p => p.room_value >= 3 && p.room_value - p.max_bid >= 3).sort((a, b) => (b.room_value - b.max_bid) - (a.room_value - a.max_bid)).slice(0, 8);
+  $("#lbait").innerHTML = bt.map(p => `<div><button class="name" type="button" data-pick="${esc(p.name)}">${esc(p.name)}</button><span>room $${fmt(p.room_value)} <span class="muted">/ you $${p.max_bid}</span></span></div>`).join("") || `<div class="empty">Nothing obvious left.</div>`;
+
+  // teams
+  const order = st.teams.map((_, i) => i).slice(1).sort((a, b) => m.maxBid[b] - m.maxBid[a]);
+  $("#lteams").innerHTML = `<table class="teamtbl"><thead><tr><th>Team</th><th>$ left</th><th>Spots</th><th>Max</th></tr></thead><tbody>${order.map(i =>
+    `<tr><td><input data-team="${i}" value="${esc(st.teams[i])}" aria-label="Team name"></td><td>${m.money[i]}</td><td>${m.spots[i]}</td><td class="g">${m.maxBid[i]}</td></tr>`).join("")}</tbody></table>`;
+
+  // log
+  $("#llog").innerHTML = st.sales.length ? [...st.sales].reverse().map(s => `<div><span><b>${esc(s.name)}</b> <span class="muted">→ ${esc(st.teams[s.team] ?? "?")}</span></span>
+    <span>$${s.price} <button class="x" type="button" data-undo="${esc(s.id)}" title="Undo" aria-label="Undo sale">↺</button></span></div>`).join("")
+    : `<div class="empty">No sales yet.</div>`;
+  const f = $("#livesettings");
+  if (document.activeElement?.form !== f) { f.budget.value = st.budget; f.spots.value = st.spots; }
+  renderSync();
+}
+
+function renderBlock(m){
+  if (!(m && m.st)) m = liveModel();
+  const el = $("#blkcard"), name = $("#blk").value.trim();
+  if (!name) { el.innerHTML = ""; return; }
+  const p = findPlayer(name);
+  if (!p) { el.innerHTML = `<p class="sub" style="margin:0">Not in the sim's player pool. You can still record the sale.</p>`; return; }
+  if (LIVE.state.sales.some(s => key(s.name) === key(p.name))) { el.innerHTML = `<p class="sub" style="margin:0">${esc(p.name)} is already sold.</p>`; return; }
+  const adj = m.adj(p);
+  const rivals = m.maxBid.map((b, t) => [b, t]).filter(([, t]) => t > 0).sort((a, b) => b[0] - a[0]);
+  const [topBid, topTeam] = rivals[0] || [0, 0];
+  let cls = "", call, amt, why;
+  if (p.list === "bait" || (p.room_value - p.max_bid >= 5 && p.max_bid < p.room_value * 0.6)) {
+    cls = "bait"; amt = "$" + adj; call = "Let them pay";
+    why = `Others value him around $${fmt(p.room_value)}; he's worth $${adj} to your build. Bid him up a little if you like, but stop at $${adj}.`;
+  } else if (adj <= 0 || m.spots[0] <= 0) {
+    cls = "pass"; amt = "$0"; call = m.spots[0] <= 0 ? "Roster full" : "Pass";
+    why = m.spots[0] <= 0 ? "You have no spots left." : "Doesn't help this build.";
+  } else if (adj <= 2) {
+    amt = "$" + adj; call = "Flier only"; why = "Worth it only at $1–2.";
+  } else {
+    amt = "$" + adj; call = "Bid up to";
+    why = `Base max $${p.max_bid}${adj !== p.max_bid ? `, adjusted ${adj > p.max_bid ? "up" : "down"} for room inflation` : ""}. Usually sells for $${fmt(p.sells_median)} ($${fmt(p.sells_p10)}–${fmt(p.sells_p90)}).`;
+  }
+  if (topBid < adj && cls !== "pass" && cls !== "bait") why += ` Nobody else can bid more than $${topBid} (${esc(LIVE.state.teams[topTeam])}), so $${topBid + 1} wins it.`;
+  el.innerHTML = `<div class="bigcall ${cls}"><div class="amt">${amt}</div><div><div class="call">${call}</div><div class="muted" style="font-weight:600">${esc(p.name)} · ${esc(p.team)}${p.pos ? " · " + esc(p.pos) : ""}</div></div>
+      <div class="why" style="grid-column:1/-1">${why}</div></div>
+    ${zGrid(DATA.cats.map(c => p[`z_${c}`]))}`;
+}
+
+init();
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { livePoll(); if (JOB?.running) pollJob(); } });
+</script>
+</body>
+</html>
